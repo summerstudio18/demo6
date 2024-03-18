@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wordle Game</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f0f0f0;
+    }
+
+    h1 {
+        text-align: center;
+        padding-top: 20px;
+    }
+
+    #app {
+        padding: 20px;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    #game {
+        text-align: center;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .row {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    .letter-input {
+        width: 30px;
+        height: 30px;
+        font-size: 20px;
+        text-align: center;
+        margin: 0 5px;
+    }
+
+    .button-container {
+        display: flex;
+        justify-content: center; 
+    }
+
+    .button-container button {
+        margin: 0 10px; 
+    }
+
+    button {
+        margin: auto;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    button:hover {
+        background-color: #0e3d70;
+    }
+
+    #debugButton {
+        background-color: gray;
+    }
+
+    #debugButton:hover {
+        background-color: black;
+    }
+
+    #used-letters {
+        display: flex;
+        justify-content: center; 
+    }
+
+    /* Media query for tablet size (down to 700px) */
+    @media only screen and (max-width: 700px) {
+        .letter-input {
+            width: 25px;
+            height: 25px;
+            font-size: 16px;
+        }
+    }
+
+    /* Media query for 600px wide */
+    @media only screen and (max-width: 600px) {
+        .letter-input {
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+        }
+    }
+
+</style>
+</head>
+<body>
+    <h1>Wordle Game</h1>
+    <div class="button-container">
+        <!-- Start New Game button -->
+        <button id="newGameButton">Start New Game</button>
+        <button id="debugButton" onclick="showHint()">Hint</button>
+    </div>
+
+    <div id="used-letters">
+        <p>Used letters: </p>
+    </div>
+
+    <div id="feedback"></div>
+
+    <div id="app">
+        <div id="game">
+        </div>
+        <div class="button-container">
+        <button onclick="validateGuess()">Submit Guess</button>
+        </div>
+    </div>
+
+<script>
+    // Function to create the Wordle game board
+    function createWordleBoard(rows, columns) {
+        const gameDiv = document.getElementById('game');
+
+        // Clear the existing content of the game div
+        gameDiv.innerHTML = '';
+
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.classList.add('row');
+
+            for (let j = 0; j < columns; j++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = '1';
+                input.classList.add('letter-input');
+                rowDiv.appendChild(input);
+
+                // Add event listener to move to the next input field when a letter is entered
+                input.addEventListener('input', function() {
+                    const nextInput = this.nextElementSibling;
+                    if (nextInput && this.value) {
+                        nextInput.focus();
+                    }
+
+                    // Update the used letter indicator
+                    updateUsedLetters(this.value);
+                });
+            }
+
+            gameDiv.appendChild(rowDiv);
+        }
+    }
+
+    // Function to start a new game
+    function startNewGame() {
+        // Clear the used letters
+        usedLetters = [];
+        updateUsedLetters('');
+
+        // Call the function to create the Wordle game board with new dimensions
+        createWordleBoard(6, 5);
+    }
+
+    // Event listener for the Start New Game button
+    const newGameButton = document.getElementById('newGameButton');
+    newGameButton.addEventListener('click', startNewGame);
+
+    // Call the function to create the initial Wordle game board
+    createWordleBoard(6, 5);
+
+    // Array to store used letters
+    let usedLetters = [];
+
+    // Function to update the used letter indicator
+    function updateUsedLetters(letter) {
+        if (!usedLetters.includes(letter) && letter.match(/[a-z]/i)) {
+            usedLetters.push(letter);
+            const usedLettersDiv = document.getElementById('used-letters');
+            usedLettersDiv.innerHTML = `<p>Used letters: ${usedLetters.join(', ')}</p>`;
+        }
+    }
+
+    // Function to validate the guess
+    async function validateGuess() {
+        // Get the guess from the input fields
+        const inputs = document.querySelectorAll('.letter-input');
+        let guess = '';
+        inputs.forEach(input => {
+            guess += input.value.toUpperCase();
+        });
+
+        // Fetch the word from the API
+        const apiUrl = 'https://random-word-api.herokuapp.com/word?length=5';
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch word from the API');
+            }
+            const data = await response.json();
+            const correctAnswer = data[0].toUpperCase(); // Assuming the API response is an array containing words
+
+            // Compare the guess with the correct answer
+            const result = [];
+            for (let i = 0; i < guess.length; i++) {
+                const guessLetter = guess[i];
+                const answerLetter = correctAnswer[i];
+                if (correctAnswer.includes(guessLetter)) {
+                    if (guessLetter === answerLetter) {
+                        result.push("Correct letter in correct position");
+                    } else {
+                        result.push("Correct letter in wrong position");
+                    }
+                } else {
+                    result.push("Incorrect letter");
+                }
+            }
+
+            // Display the result
+            const feedbackDiv = document.getElementById('feedback');
+            feedbackDiv.innerHTML = result.join('<br>');
+        } catch (error) {
+            console.error('Error fetching word from the API:', error);
+            // Handle error
+        }
+    }
+
+    // Function to show the correct answer as a hint
+    async function showHint() {
+        const apiUrl = 'https://random-word-api.herokuapp.com/word?length=5';
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch word from the API');
+            }
+            const data = await response.json();
+            const correctAnswer = data[0].toUpperCase(); // Assuming the API response is an array containing words
+
+            const feedbackDiv = document.getElementById('feedback');
+            feedbackDiv.innerHTML = `Hint: ${correctAnswer}`;
+        } catch (error) {
+            console.error('Error fetching word from the API:', error);
+        }
+    }
+
+
+</script>
+</body>
+</html>
